@@ -1,0 +1,7 @@
+# vendor BIOS binaries and unpacked output stay local
+work/
+*.ROM
+*.rom
+*.EXE
+*.IMA
+__pycache__/
