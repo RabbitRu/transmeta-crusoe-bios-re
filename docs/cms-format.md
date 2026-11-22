@@ -151,3 +151,32 @@ DLL даёт `CMSDownload`, `CMSUpload`, `CMSGetSignedFileCMSVersion`, `CMSGetRe
 
 Следствие: штатный путь примет только образ, подписанный Transmeta (т.е. ровно
 `cms4.4.03raptor.cru`). Изменённый образ — только патч CMS в RAM или прямая прошивка `SROM`.
+
+## PTT — Persistent Translation Technology (разбор F1870_CrusoePTTen.msi)
+
+CMS держит готовые трансляции x86→VLIW только в RAM (кэш трансляций в зарезервированных
+16 МБ). После перезагрузки всё теряется: код снова сначала интерпретируется, потом
+транслируется, потом оптимизируется — отсюда медленный старт системы и программ.
+PTT сохраняет базу трансляций на диск и заливает её обратно в CMS при следующей загрузке.
+На установившуюся скорость не влияет — только на «прогрев».
+
+Связь с CMS — MSR `0x80868040` (оба поколения) и `0x80868042` (PTT 2.0); драйвер переводит
+CMS в состояние `KM_IDLE` и выгружает/загружает базу.
+
+| | PTT 1.0 | PTT 2.0 |
+|---|---|---|
+| Компоненты | `pttsvc.exe`, `pttmsr.sys` (`\\.\PtMsr`), `fastmbr.exe` | `CrusoePTT.sys`, `CrusoePTT2.exe`, `pttrun.exe` |
+| Где база | `C:\$$$$TMTA.DAT`, непрерывный фрагмент диска | файлы `*.SY.DB` в `Program Files\Transmeta\...` |
+| Когда грузится | до Windows: `fastmbr` переписывает загрузочный сектор, тот читает базу по LBA | после старта драйвера, есть асинхронная загрузка |
+| Требование | CMS с интерфейсом PTT 1.0 | CMS с интерфейсом PTT 2.0 (идёт вместе с 4.4.03) |
+
+Версию интерфейса PTT сообщает сам CMS; драйвер пишет «Need a CMS revision that supports
+PTT 2.0» / «…PTT 1.0 either», если её нет.
+
+Настраиваемые параметры PTT 2.0 (окно «CrusoePTT Configuration»): Interpreter Threshold for
+Saver, Saver Translation Idle Seconds, Minimum Number of New Translations/Save, Max Saver Wait
+Delay, Minimum Number of New Translations/Second, Best SY DB usage %, Always Save DB,
+Enable Asynch Load.
+
+Осторожно: `fastmbr.exe` (PTT 1.0) перезаписывает MBR `\\.\PhysicalDrive0` — ломает чужие
+загрузчики (GRUB, dual boot).
