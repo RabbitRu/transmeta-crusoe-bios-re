@@ -1,7 +1,13 @@
-# vendor BIOS binaries and unpacked output stay local
+# vendor binaries and local analysis artifacts stay out of git
 work/
+dl/
 *.ROM
 *.rom
 *.EXE
+*.exe
 *.IMA
+*.cru
+*.cab
+*.msi
+*.pdf
 __pycache__/
