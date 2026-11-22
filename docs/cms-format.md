@@ -114,3 +114,40 @@ CMS **не** в том же флеше, что x86-BIOS. По даташиту T
 | `F1539/F1542_CMSDrv.sys` | драйвер ядра, выдающий команду обновления через MSR |
 | `F1870_CrusoePTTen.msi` | служба Persistent Translation Technology 2.0.12 |
 | `F1992_SoftPatchConfirm.exe`, `F1622_*.ico` | подтверждение, иконка |
+
+## Как обновляется CMS (разбор драйвера из SP23689)
+
+Штатное обновление — из работающей Windows, **без программатора**. Пишет сам процессор
+(запущенный в RAM CMS), которому из x86 шлют команды через MSR. Три слоя:
+`F1687_SoftPatch.exe` (GUI) → `F1949_CMSDll.dll` → `F15xx_CMSDrv.sys` (драйвер ядра).
+
+Драйвер — это тонкая обёртка: в нём есть generic `rdmsr(ecx)` и `wrmsr(ecx,eax,edx)`, а
+номера MSR и команды приходят сверху. Его IOCTL:
+
+| IOCTL | Назначение |
+|---|---|
+| `IoctlCMSCrusoeExisted` | это Crusoe? (CPUID `0x80860001`) |
+| `IoctlCMSGetCMSVersion` | текущая версия CMS (CPUID `0x80860002`, EBX/ECX) |
+| `IoctlCMSGetRecoveryMode` | работаем ли на recovery-копии (EDX) |
+| `IoctlCheckROM`, `IoctlCMSGetCMSSize` | наличие и размер флеша CMS |
+| `IoctlCMSReadCMS`, `IoctlCMSWriteCMS` | чтение/запись образа (у записи — `wrFunctionCode`) |
+| `IoctlCMSGetPSNID` | ID процессора (mfgid/lotid/wdid) |
+| `IoctlAPCMSR` | сырые rdmsr/wrmsr для прочих команд |
+
+DLL даёт `CMSDownload`, `CMSUpload`, `CMSGetSignedFileCMSVersion`, `CMSGetRecoveryMode`,
+`CMSGetInformation`.
+
+Порядок:
+1. Проверка Crusoe, чтение текущей и recovery-версии.
+2. Версия обновления берётся из 192-байтного заголовка `.cru` (`CMSGetSignedFileCMSVersion`).
+3. Весь подписанный `.cru` отдаётся драйверу; `IoctlCMSWriteCMS` командой через MSR передаёт
+   его запущенному CMS.
+4. **CMS сам проверяет DSA-подпись** зашитым открытым ключом и только потом пишет образ в
+   последовательный флеш `SROM`. Неподписанный образ штатно не принимается.
+5. На следующей загрузке процессор стримит новый образ, распаковывает, запускает.
+
+Защита от кирпича — в механизме: две копии во флеше + watchdog. Не взвёлся watchdog после
+старта новой копии → берётся recovery. `IoctlCMSGetRecoveryMode` показывает, что вы на запасной.
+
+Следствие: штатный путь примет только образ, подписанный Transmeta (т.е. ровно
+`cms4.4.03raptor.cru`). Изменённый образ — только патч CMS в RAM или прямая прошивка `SROM`.
