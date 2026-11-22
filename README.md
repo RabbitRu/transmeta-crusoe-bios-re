@@ -26,6 +26,20 @@
 4. **Чужой образ штатно не зальёшь**: обновление проверяет DSA-подпись Transmeta. Обходы —
    правка CMS в RAM или прямая прошивка микросхемы программатором (оба требуют доступа к железу).
 
+5. **Нативная ISA Crusoe вскрыта** (`docs/crusoe-isa.md`): формат 64/128-битных молекул
+   (признак в `w1[30:29]`), поля атомов ALU/LSU/BRU, регистры (таблица имён из самого CMS).
+   Разбор воспроизводит опубликованную перепись связок до единицы. Есть дизассемблер с
+   псевдо-C (`tools/crusoe_dis.py`) и ассемблер (`tools/crusoe_asm.py`); весь код CMS
+   проходит «дизассемблировать → собрать» без единого расхождения.
+6. **Карта CMS** (`docs/cms-architecture.md`): эмулятор CPUID, обработчики RDMSR/WRMSR,
+   протокол чтения флеша и OEM Configuration Table через MSR `0x80868000`, таблицы
+   диспетчеризации, подсистемы транслятора.
+7. **Ускорение без замены CMS** (`docs/bios-cms-tuning.md`): транслятор снаружи не
+   настраивается, но есть рычаги через MSR/регистры северного моста — LongRun 100/100 и
+   performance mode, `LR_ATM`, `PM_CR2_OPT.PSM_EN` (+1 такт памяти), `PERF_CTRL`, меньше SMI,
+   SPD-регистры (тайминги считает CMS), арбитр PCI. Рабочие точки LongRun, вероятно, лежат в
+   OCT — данных платы, а не в коде CMS.
+
 ## Этапы
 
 - **Этап 1 (обновить CMS).** Для C1MW и Flybook (оба TM5800) целевая версия — 4.4.03 из
@@ -49,6 +63,16 @@
     python3 tools/ctx.py     MODULE 0x30 0x40 80868010  # дизассемблер вокруг константы
     python   tools/lrti_dump.py                         # на ноутбуке: таблица LongRun + CPUID
     python3 tools/hd.py      FILE 0x1000:0x40           # hex-дамп
+    python3 tools/crusoe_dis.py IMAGE 0xa6798 0xa6920      # листинг нативного кода CMS
+    python3 tools/crusoe_dis.py IMAGE 0xa6798 0xa6920 -c   # то же псевдо-C
+    python3 tools/crusoe_asm.py SRC.s -o OUT.bin --org A   # ассемблер (синтаксис = листинг)
+    python3 tools/crusoe_asm.py --selftest IMAGE           # dis→asm всего CMS, 0 расхождений
+    python  tools/crusoe_probe.py                          # на ноутбуке: MSR/LongRun/northbridge
+    python3 tools/cms_flash_read.py --sizes                # на ноутбуке: области флеша CMS/OCT
+
+`IMAGE` — распакованный CMS: `python3 tools/cru.py cms4.4.03raptor.cru work/cms/`.
+SoftPaq качается так: `curl -O https://ftp.hp.com/pub/softpaq/sp23501-24000/sp23689.exe`
+(имя строчными буквами). Документы Transmeta — `https://datasheets.chipdb.org/Transmeta/`.
 
 Зависимости для softpaq/cru: `pip install cabarchive olefile`; для ctx — `capstone`.
 
@@ -65,6 +89,8 @@
     f2644890db044c7517ebecf7ab788c181218c793e4fafcf06856b1553be0d23e  cms4.4.03raptor.cru
 
 ## Что нужно от вас
+
+0. **Вывод `tools/crusoe_probe.py`** с каждой машины (Linux, root) и `cms_flash_read.py --sizes`.
 
 1. **Версии CMS** на каждой машине: строка «Code Morphing Software revision …» из
    `dmesg` (Linux) или BIOS Setup.
