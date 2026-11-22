@@ -89,10 +89,14 @@ OPNAMES = {
     0x138: 'or', 0x13b: 'ori', 0x1bb: 'oril',
     0x170: 'cmp.c', 0x173: 'cmpi.c', 0x1f3: 'cmpil.c',
     0x020: 'cmp.and',
-    0x090: 'sll?', 0x093: 'slli',
+    0x090: 'sll?', 0x093: 'slli', 0x098: 'srl?', 0x09b: 'srli?',
     # 0x14b = nop and 0x03b = nop.lsu when all other fields are canonical
     # LSU
     0x050: 'ld', 0x044: 'st',
+    # imm8 form of ld: reads slot imm of a local array based at rs1. RDMSR serves
+    # SYSENTER_CS/ESP/EIP (0x174..0x176) as ldi %r0, %r21, 50/51/52 -> the LDM SRAM
+    # copies of x86 MSRs described in Crusoe Exposed.
+    0x053: 'ldi?',
 }
 # ALU1 atoms whose type-select bits [30:29] are non-zero use a separate opcode
 # space (FP / MMX / special-register moves). Keyed by (type, opcode).
