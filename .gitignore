@@ -11,3 +11,4 @@ dl/
 *.msi
 *.pdf
 __pycache__/
+out/

@@ -101,7 +101,10 @@ SoftPaq качается так: `curl -O https://ftp.hp.com/pub/softpaq/sp23501
 
 ## Что нужно от вас
 
-0. **Вывод `tools/crusoe_probe.py`** с каждой машины (Linux, root) и `cms_flash_read.py --sizes`.
+0. **Прогон диагностической флешки** на каждой машине: образ `crudiag.img` (сборка —
+   `sudo diag/build_usb.sh WORKDIR`) записать на флешку (Rufus в режиме DD / `dd`),
+   загрузиться с неё — она сама снимет `crusoe_probe`, LongRun, размеры флеша, lspci,
+   dmidecode, бенчмарк, сохранит в `results\<модель>-<N>\` на той же флешке и выключит ноутбук.
 
 1. **Версии CMS** на каждой машине: строка «Code Morphing Software revision …» из
    `dmesg` (Linux) или BIOS Setup.

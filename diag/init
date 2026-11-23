@@ -1,0 +1,66 @@
+#!/bin/sh
+# PID 1 of the Crusoe diagnostic USB stick: run every read-only probe, save the
+# output to the FAT32 partition labelled CRUDIAG, power off. No user input.
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+mount -t tmpfs tmp /tmp
+dmesg -n 1                                   # keep the screen readable
+
+say() { echo; echo "=== CRUDIAG: $*"; }
+
+say "waiting for the USB partition CRUDIAG"
+i=0; DEV=
+while [ $i -lt 60 ]; do
+    DEV=$(blkid -L CRUDIAG 2>/dev/null) && [ -n "$DEV" ] && break
+    sleep 1; i=$((i + 1))
+done
+[ -n "$DEV" ] || { say "CRUDIAG NOT FOUND - nothing saved"; sleep 600; echo o > /proc/sysrq-trigger; }
+mount -t vfat -o rw,flush "$DEV" /mnt
+
+# results/<product>-<n>/, one directory per boot so repeated runs never overwrite
+P=$(dmidecode -s system-product-name 2>/dev/null | tr -c 'A-Za-z0-9.\n-' _ | head -c 24)
+[ -n "$P" ] || P=unknown
+n=1; while [ -e "/mnt/results/$P-$n" ]; do n=$((n + 1)); done
+O=/mnt/results/$P-$n; mkdir -p "$O"
+say "saving to $O"
+
+# run NAME TIMEOUT CMD... : output to $O/NAME.txt, flushed right away so a hang
+# or crash in a later step loses nothing already collected.
+run() {
+    name=$1; t=$2; shift 2
+    say "$name"
+    timeout "$t" "$@" > "$O/$name.txt" 2>&1
+    echo "exit=$?" >> "$O/$name.txt"
+    tail -n 3 "$O/$name.txt"
+    sync
+}
+
+modprobe msr 2>/dev/null; modprobe cpuid 2>/dev/null   # built in; harmless if so
+T=/crudiag/tools
+run 00-kernel      10 sh -c 'uname -a; cat /proc/cmdline; cat /proc/cpuinfo; cat /proc/meminfo'
+run 01-dmidecode   30 dmidecode
+run 02-lspci       30 lspci -nn -vvv -xxxx
+run 03-probe      120 python3 $T/crusoe_probe.py
+run 04-lrti       120 python3 $T/lrti_dump.py
+run 05-flash-sizes 60 python3 $T/cms_flash_read.py --sizes
+# baseline speed: same work every run, compare before/after BIOS changes
+run 06-bench      300 python3 $T/bench.py
+
+# Opt-in only: reading flash regions uses wrmsr and is untested on hardware.
+# Create crudiag.cfg on the stick with the line READ_FLASH=1 to enable.
+if grep -q '^READ_FLASH=1' /mnt/crudiag.cfg 2>/dev/null; then
+    for r in 1 2 3 4 5; do
+        run 10-flash-read-$r 120 python3 $T/cms_flash_read.py --read $r "$O/flash-region$r.bin" --i-understand
+    done
+fi
+
+dmesg > "$O/99-dmesg.txt" 2>&1
+date > "$O/DONE"
+sync; umount /mnt; sync
+say "DONE. Powering off. (If it does not, just switch the laptop off.)"
+sleep 5
+poweroff -f 2>/dev/null
+echo o > /proc/sysrq-trigger
+while :; do sleep 60; done
