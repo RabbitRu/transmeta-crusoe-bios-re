@@ -9,6 +9,7 @@ END    CMS address to stop at (default: end of the code region, 0x1823f0)
 -c     print pseudo-C next to each atom instead of assembly
 -b     load address of the image in CMS space (default 0x8e000)
 --raw  also print the raw words of each molecule
+--histogram  opcode histograms, same format as CrusoeReport-Part2-histogram.txt
 --stats  print the molecule census instead of a listing (--linear: no resync,
           reproduces the census published in Crusoe Exposed)
 
@@ -110,7 +111,7 @@ def fmt_alu(x, slot, kind, k):
         return 'ld%s %s, [%s], m=%d' % (sfx, GPR[rd], GPR[lo >> 2], rs1)
     if op == 0x044 and not ot:
         return 'st%s [%s], %s, m=%d' % (sfx, GPR[lo >> 2], GPR[rs1], rd)
-    r1 = SPR[rs1] if (ot, op) in SPR_OPS else GPR[rs1]
+    r1 = bank_reg(BANK_OPS[(ot, op)], rs1) if (ot, op) in BANK_OPS else GPR[rs1]
     return '%s%s %s, %s, %s' % (name, sfx, GPR[rd], r1, GPR[lo >> 2])
 
 def br_target(x, base):
@@ -147,10 +148,11 @@ def c_alu(x, imm, slot, kind, k):
     if not ot and x & 0x1fffffff in (0x14b00000, 0x03b00600):
         return None
     name = opname(op, ot).rstrip('?')
-    if (ot, op) == (2, 0x060):
-        return '%s = %s;' % (cname(rd), SPR[rs1][1:])
-    if (ot, op) == (2, 0x068):
-        return '%s = %s;  /* br.prep */' % (SPR[rs1][1:], cname(lo >> 2))
+    if (ot, op) in BANK_OPS:
+        r = bank_reg(BANK_OPS[(ot, op)], rs1)[1:]
+        if op & 8:
+            return '%s = %s;%s' % (r, cname(lo >> 2), '  /* br.prep */' if rs1 == 58 and op == 0x068 else '')
+        return '%s = %s;' % (cname(rd), r)
     form = opform(op)
     if op == 0x050:
         return '%s = load.m%d(%s);' % (cname(rd), rs1, cname(lo >> 2))
@@ -259,6 +261,38 @@ def stats(img, base=BASE, linear=False):
         print('  %-6s %d' % (k, c[k]))
     print('(the published census, 78460/23297, counts a purely linear parse: use --linear)')
 
+def histogram(img, base=BASE, out=sys.stdout):
+    """Opcode histograms in the exact format of CrusoeReport-Part2-histogram.txt
+    (linear parse; ALU1 split by the full 3-bit [31:29] field, as the author did)."""
+    w = u32s(img)
+    end = min(CODE_END, base + len(img))
+    a0, a1, ls = [0] * 512, [[0] * 512 for _ in range(8)], [0] * 512
+    for a, kind, ws in molecules(w, base, base, end, None):
+        for slot, x in zip(SLOTS[kind], ws):
+            op = (x >> 20) & 0x1ff
+            if slot == 'ALU0':
+                a0[op] += 1
+            elif slot == 'ALU1':
+                a1[x >> 29][op] += 1
+            elif slot == 'LSU':
+                ls[op] += 1
+    def table(name, st):
+        out.write('%s\n              ' % name)
+        for i in range(8):
+            out.write('%-10s ' % format(i, '03b'))
+        out.write('\n')
+        for i in range(512):
+            if i & 7 == 0:
+                out.write('  %9s:  ' % format(i >> 3, '06b'))
+            out.write('%-10d ' % st[i])
+            if i & 7 == 7:
+                out.write('\n')
+        out.write('\n')
+    table('Opcode histogram for ALU0', a0)
+    for t in range(8):
+        table('Opcode histogram for ALU1, type %d' % t, a1[t])
+    table('Opcode histogram for LSU', ls)
+
 def main(argv):
     args = [a for a in argv[1:] if not a.startswith('-')]
     base = BASE
@@ -266,6 +300,8 @@ def main(argv):
         base = int(argv[argv.index('-b') + 1], 0)
         args.remove(argv[argv.index('-b') + 1])
     img = open(args[0], 'rb').read()
+    if '--histogram' in argv:
+        return histogram(img, base)
     if '--stats' in argv:
         return stats(img, base, '--linear' in argv)
     start = int(args[1], 0) if len(args) > 1 else None

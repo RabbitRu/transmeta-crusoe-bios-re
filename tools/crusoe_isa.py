@@ -105,10 +105,19 @@ OPNAMES = {
 # space (FP / MMX / special-register moves). Keyed by (type, opcode).
 # t2.op060 reads and t2.op068 writes a special register given by the rs1 field
 # (rs1=58 = %link before every indirect return), hence the names.
+# Type-2 ALU1 register-bank moves (structure from the opcode histogram of
+# Crusoe Exposed + operand statistics): opcode bits [8:7] select one of four
+# banks, bit 3 the direction. 'mf' (xx1100000): rd = bank[rs1], rs2 unused;
+# 'mt' (xx1101000): bank[rs1] = rs2, rd unused. Bank 0 = special registers
+# (%link, %from, %fl_ctx, %selectorN ...); banks 1-3 are not identified yet.
+# br.prep of the article is mtsr %link. t2.040/048/050/058 never have operands.
 TOPNAMES = {
-    (2, 0x060): 'mfsr?',
-    (2, 0x068): 'br.prep',
+    (2, 0x060): 'mfsr', (2, 0x068): 'mtsr',
+    (2, 0x0e0): 'mfb1', (2, 0x0e8): 'mtb1',
+    (2, 0x160): 'mfb2', (2, 0x168): 'mtb2',
+    (2, 0x1e0): 'mfb3', (2, 0x1e8): 'mtb3',
 }
+BANK_OPS = {(2, b << 7 | 0x60 | d): b for b in range(4) for d in (0, 8)}
 NAME2OP = {v.rstrip('?'): (0, k) for k, v in OPNAMES.items()}
 NAME2OP.update({v.rstrip('?'): k for k, v in TOPNAMES.items()})
 
@@ -129,7 +138,10 @@ def parse_opname(s):
         return t, int(s[2:], 16)
     raise ValueError('unknown mnemonic %r' % s)
 
-SPR_OPS = {(2, 0x060), (2, 0x068)}   # rs1 field is a special-register number
+SPR_OPS = set(BANK_OPS)   # rs1 field is a register number in bank BANK_OPS[op]
+
+def bank_reg(bank, n):
+    return SPR[n] if bank == 0 else '%%b%d.%d' % (bank, n)
 
 def opform(op):
     if is_imm32_op(op):

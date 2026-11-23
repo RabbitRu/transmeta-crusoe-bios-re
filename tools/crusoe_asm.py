@@ -45,6 +45,9 @@ def reg(s):
 
 def spr(s):
     s = s.strip()
+    m = re.fullmatch(r'%b\d\.(\d+)', s)
+    if m:
+        return int(m.group(1))
     if s in SPR_NUM:
         return SPR_NUM[s] - 64
     m = re.fullmatch(r'%s(\d+)', s)
