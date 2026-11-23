@@ -70,7 +70,6 @@
     python3 tools/crusoe_dis.py IMAGE 0xa6798 0xa6920 -c   # то же псевдо-C
     python3 tools/crusoe_asm.py SRC.s -o OUT.bin --org A   # ассемблер (синтаксис = листинг)
     python3 tools/crusoe_asm.py --selftest IMAGE           # dis→asm всего CMS, 0 расхождений
-    python  tools/crusoe_probe.py                          # на ноутбуке: MSR/LongRun/northbridge
     python3 tools/crusoe_emu.py IMAGE --selftest           # исполнить код CMS, проверить семантику ISA
     python3 tools/cms_patch.py IMAGE OUT --family6 --vendor GenuineIntel   # правки данных CPUID
     python3 tools/cru_pack.py ORIG NEW OUT.cru             # репак образа обратно в .cru (без подписи)
