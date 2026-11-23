@@ -34,6 +34,9 @@
 6. **Карта CMS** (`docs/cms-architecture.md`): эмулятор CPUID, обработчики RDMSR/WRMSR,
    протокол чтения флеша и OEM Configuration Table через MSR `0x80868000`, таблицы
    диспетчеризации, подсистемы транслятора.
+6a. **ABI CMS** (`docs/cms-abi.md`, `tools/cms_abi.py`): аргументы `%r40..%r45`, результат
+   `%r40`, сохраняемые `%r11..%r19` и `%r25..%r33`, x86-состояние в `%r0..%r10`, глобальные
+   `%r20/%r21`, стек `%r47`, возврат через `mfsr/mtsr %link` + `br.ind`.
 7. **Ускорение без замены CMS** (`docs/bios-cms-tuning.md`): транслятор снаружи не
    настраивается, но есть рычаги через MSR/регистры северного моста — LongRun 100/100 и
    performance mode, `LR_ATM`, `PM_CR2_OPT.PSM_EN` (+1 такт памяти), `PERF_CTRL`, меньше SMI,
