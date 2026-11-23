@@ -82,12 +82,15 @@ CC = ['o', 'no', 'b', 'nb', 'e', 'ne', 'be', 'nbe', 's', 'ns', 'p', 'np',
 #   xxxxxx000  register-register  rd, rs1, rs2        (rs2 in [7:2], [1:0] extra)
 #   xxxxxx011  register-imm8      rd, rs1, imm8       ([7:0], signed)
 #   11xxxx011  register-imm32     rd, rs1, <imm>      (value in the IMM word)
-# Names without '?' are confirmed by the annotated listings in "Crusoe Exposed".
+# Names without '?' are confirmed by the opcode table / annotated listings of
+# "Crusoe Exposed" (third_party/CrusoeReport-Part2-Samples.S, Disasm.cpp).
 OPNAMES = {
     0x100: 'add', 0x103: 'addi', 0x183: 'addil',
-    0x120: 'and?', 0x123: 'andi?', 0x1a3: 'andil',
+    0x120: 'and', 0x123: 'andi', 0x1a3: 'andil',
     0x138: 'or', 0x13b: 'ori', 0x1bb: 'oril',
-    0x170: 'cmp.c', 0x173: 'cmpi.c', 0x1f3: 'cmpil.c',
+    # sub.c with rd=%sink is a compare; 302 uses write a real rd, so these are subtracts
+    0x170: 'sub.c', 0x173: 'subi.c', 0x1f3: 'subil.c',
+    0x068: 'movlink?', 0x118: 'oprr?',
     0x020: 'cmp.and',
     0x090: 'sll?', 0x093: 'slli', 0x098: 'srl?', 0x09b: 'srli?',
     # 0x14b = nop and 0x03b = nop.lsu when all other fields are canonical

@@ -161,6 +161,10 @@ def c_alu(x, imm, slot, kind, k):
     base = name.rstrip('il').rstrip('i') if form != 'reg' else name
     if name.startswith('cmp'):
         return 'cc = %s(%s, %s);' % (name, cname(rs1), b)
+    if name.startswith('sub'):
+        if rd == 62:
+            return 'cc = cmp(%s, %s);' % (cname(rs1), b)
+        return '%s = %s - %s; cc = flags;' % (cname(rd), cname(rs1), b)
     if base in C_BIN:
         if rs1 == 63 and base in ('add', 'or'):
             rhs = b
