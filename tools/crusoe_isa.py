@@ -87,6 +87,7 @@ CC = ['o', 'no', 'b', 'nb', 'e', 'ne', 'be', 'nbe', 's', 'ns', 'p', 'np',
 OPNAMES = {
     0x100: 'add', 0x103: 'addi', 0x183: 'addil',
     0x120: 'and', 0x123: 'andi', 0x1a3: 'andil',
+    0x130: 'xor?', 0x133: 'xori?', 0x1b3: 'xoril?',
     0x138: 'or', 0x13b: 'ori', 0x1bb: 'oril',
     # sub.c with rd=%sink is a compare; 302 uses write a real rd, so these are subtracts
     0x170: 'sub.c', 0x173: 'subi.c', 0x1f3: 'subil.c',
