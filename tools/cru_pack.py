@@ -7,8 +7,7 @@ Takes the original .cru (for its 192-byte header and DSA signature) and a
 modified decompressed image, and writes a new .cru:
   * gzip-deflate the image (same container the loader expects: 1f 8b 08)
   * patch the header's decompressed-size fields (+0x28, +0x2c) if the size changed
-  * recompute the header magic/checksum word the same way the original relates
-    to its body (see note), then append the trailing bytes.
+  * leave the header magic word +0x00 unchanged (derivation unknown, see note)
 
 By default the DSA signature is DROPPED (replaced with nothing): a modified
 image can never carry a valid Transmeta signature, so the only honest output is

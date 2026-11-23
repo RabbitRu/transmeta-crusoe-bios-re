@@ -209,7 +209,8 @@ def selftest(img):
 
 def main(argv):
     if '--selftest' in argv:
-        sys.exit(0 if selftest(open(argv[argv.index('--selftest') + 1], 'rb').read()) else 1)
+        img = [a for a in argv[1:] if a != '--selftest'][0]   # IMAGE --selftest or --selftest IMAGE
+        sys.exit(0 if selftest(open(img, 'rb').read()) else 1)
     img = open(argv[1], 'rb').read()
     start = int(argv[2], 0)
     args = {}
